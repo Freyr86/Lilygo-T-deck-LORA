@@ -1,3 +1,39 @@
+"""
+Desciption:
+    classe de gestion du module sx1262 baser sur une classe ecrite par
+    ehong-tl
+    https://github.com/ehong-tl
+
+Modifier par: Aymon Ludovic
+
+V1.00
+
+    13.01.2024
+    - Ajout de la fonction run_recev pour verification de reception de message
+    - Ajout de la fonction reset_stat pour remettre le module en mode reception et de réinitialiser les stat
+    - Ajout de la fonction setRx pour passer en mode reception
+    - Ajout de la fonction setStandBy pour passer en mode standby
+    - Ajout de la fonction getFreq pour récupérer la fréquence actuel du module
+    - Ajout de la fonction getBandwidth pour récupérer la largeur de bande actuel du module
+    - Ajout de la fonction setBandwidth pour modifier la largeur de bande du module
+    - Ajout de la fonction getOutputPower pour récupérer la puissance d'émission actuel du module
+    - Ajout de la fonction setCoderate pour modifier le coderate du module
+    - Ajout de la fonction getCoderate pour récupérer le coderate actuel du module
+    - Ajout de la fonction getRSSI pour récupérer la valeur RSSI de la dernière reception
+
+    14.01.2024
+    - Modification de la fonction run_recev pour supprimer l'identifiant du reseau
+    - Ajout de la fonction getSNR pour récupérer la valeur SNR de la dernière reception
+    - Ajout de la fonction setWebId pour modifier l'identifiant du reseau
+    - Modufication de la focntion send pour ajouter l'identifiant du reseau
+
+    22.01.2024
+    - Finir modification de la récéption message pour gestion d'erreur
+    
+
+"""
+
+
 from _sx126x import *
 from sx126x import SX126X
 import _sx126x
@@ -17,6 +53,9 @@ class SX1262(SX126X):
     PREAMBLE_DETECT_24 = SX126X_GFSK_PREAMBLE_DETECT_24
     PREAMBLE_DETECT_32 = SX126X_GFSK_PREAMBLE_DETECT_32
     STATUS = ERROR
+
+    #identifiant du reseau
+    web_id = ""
 
     def __init__(self, spi_bus, clk, mosi, miso, cs, irq, rst, gpio):
         super().__init__(spi_bus, clk, mosi, miso, cs, irq, rst, gpio)
@@ -195,6 +234,11 @@ class SX1262(SX126X):
             return self._receive(len, timeout_en, timeout_ms)
 
     def send(self, data):
+        if self.web_id != "":
+            data = "web_id=" + self.web_id + " " + data
+
+        data = b'' + data
+
         if not self.blocking:
             return self._startTransmit(data)
         else:
@@ -285,16 +329,50 @@ class SX1262(SX126X):
 
     #reception asychrone de message
     def run_recev(self):
-        msg = ""
-        stat = super().getStatus()
-        if stat == _sx126x.STATUS['MESSAGE_EN_ATTENTE']:
-            #changement de couleur text lors de récéption
-            cmd.color_text(cmd.COLOR['yellow'])
+        #variable boucle
+        bcl = 0
 
-            #récupération du message
-            msg = self._readData()
-        return msg
+        #boucle de gestion d'erreur de reception
+        while bcl < 3:
+        
+            #initialisation de la variable message
+            msg = ""
+            stat = super().getStatus()
+            if stat == _sx126x.STATUS['MESSAGE_EN_ATTENTE']:
+                #changement de couleur text lors de récéption
+                cmd.color_text(cmd.COLOR['yellow'])
+
+                #récupération du message
+                try:
+                    msg = self._readData()
+                    bcl = 3
+                except Exception as err:
+                    print("Erreur de reception " + str(err))
+
+                #verification si sur le meme reseau
+                if len(self.web_id) != 0:
+                    compar = "web_id=" + self.web_id + " "
+                    if compar in msg:
+                        #supression de l'identifiant
+                        msg = msg.replace(compar, "")
+                    else:
+                        #supression du message si mauvais  web_id
+                        msg = ""
+                        #passage text en blanc
+                        cmd.color_text(cmd.COLOR['white'])
+
+                #si pas de web_id et que le message en contien un
+                elif "web_id=" in msg:
+                    #supression du message
+                    msg = ""
+                    #passage text en blanc
+                    cmd.color_text(cmd.COLOR['white'])
+            bcl = bcl + 1
+                    
+        return msg            
             
+
+
     def reset_stat(self):
         #passage en standby
         super().standby()
@@ -333,7 +411,19 @@ class SX1262(SX126X):
     def setCoderate(self, cr):
         super().setCodingRate(cr)
         self.coderate = cr
-
+    
+    #set de la web_id
+    def setWebId(self, web_id):
+        if len(web_id) > 0 and len(web_id) < 11:
+            self.web_id = web_id
+            return True
+        else:
+            return False, "web_id invalide"
+        
+    #get de la web_id
+    def getWebId(self):
+        return self.web_id
+    
     #récupération du coding rate
     def getCoderate(self):
         return self.coderate
@@ -341,6 +431,10 @@ class SX1262(SX126X):
     #récupération de la valeur RSSI de la derrnière reception
     def getRSSI(self):
         return super().getRSSI()
+
+    #recupération de la valeur SNR de la derrnière reception
+    def getSNR(self):
+        return super().getSNR()
 
     #A UTILISER POUR ESSAYER LA RECEPTION AVEC COULEUR
     def test(self):

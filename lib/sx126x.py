@@ -1,3 +1,20 @@
+"""
+Desciption:
+    classe de gestion du module sx1262 baser sur une classe ecrite par
+    ehong-tl
+    https://github.com/ehong-tl
+
+Modifier par: Aymon Ludovic
+
+V1.00
+
+    13.01.2024
+    - Ajoute de la fonction __del__ pour liberer la memoire et les pins
+    - Modification de l'objet SPI pour utilisation du bus SPI de la carte
+    - Ajoute de la fonction getBandwidth pour recuperer la  largeur de bande
+
+"""
+
 from _sx126x import *
 import board
 import _sx126x
