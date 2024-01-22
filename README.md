@@ -1,5 +1,7 @@
 English
 
+I will post on branches so that you have access to all versions.
+
 Update V1.01 of January 22, 2024:
 
 - Change in the layout of the entry message
@@ -30,6 +32,8 @@ I want to remind you that depending on the country, you may not have the right t
 
 
 Francais
+
+Je vais poster sur des branches pour que vous ayez accès à toutes les versions.
 
 Mise à jour V1.01 du 22.01.2024 :
 
