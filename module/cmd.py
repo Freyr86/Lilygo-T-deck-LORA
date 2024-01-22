@@ -108,18 +108,22 @@ def rmdir(chemin):
 def rm(chemin):
     #recupération du chemin
     size = len(chemin)
-    chemin = chemin[3:size]
 
-    #effacement du dossier
+    if chemin[2:3] == " ":
+        chemin = chemin[3:size]
+    else:
+        chemin = chemin[2:size]
+
+    #effacement du fichier
     try:
-        #effacement du dossier
+        #effacement du fichier
         storage.remount("/",False)
         os.remove(chemin)
         storage.remount("/",True)
     
     #gestion des exception
     except Exception as err:
-        print("*ERREUR* Exeception:",str(err))
+        print("*ERREUR EFFACEMENT* Exeception:",str(err))
 
 def cd(chemin):
     #recupération du chemin
