@@ -4,7 +4,7 @@ Desciption:
     Version console (pas de GUI) activer le module LoRa au démarage et le relache a la fin
     Version compatible avec le lilygo t-deck
 
-Version: 1.0
+Version: 1.01
 
 Auteur: Aymon Ludovic
 
@@ -36,7 +36,7 @@ Mise à jour:
     - Ajout de la commande puissance d'envoie /power
     - Test commande /power ok
 
-    07.01.2023
+    07.01.2024
     - Ajout de la commande niveau de coding /coder
     - Test commande /coder ok
     - Ajout de la commande rssi /rssi
@@ -46,26 +46,36 @@ Mise à jour:
         Vert en cours d'envoie
         Jaune en cours de reception
     
-    08.01.2023
+    08.01.2024
     - Test de l'initialisation FSK pour les message longue portée pas de 
       changement notable de la valeur RSSI il faudrait tester la portée
     - La couleur du text jaune n'est pas jaune mais bleu
     - Modification de la detection de "newline"
 
-    09.01.2023
+    09.01.2024
     - Changement du text d'ouverture
     - Ajoute de la gestion d'un ficher de sauvgarde de configuration
 
-    13.01.2023
+    13.01.2024
     - Correction de léa commande pseudo
     - Création du module du module de charge et de sauvgarde de configuration
     - Ajout de la commande de sauvgarde /save
     - Test de la sauvgarde ok
     - Test de la charge ok
     - Ajout du pseudo dans le text de départ
+    - Poste sur Git de la V1.00
 
+    14.01.2024
+    - Ajout de la commande /snr pour afficher le SNR de la derrniere reception
+    - Test de la commande /snr ok
+    - Ajout de la commande /web_id pour changer la web_id et la reécupérer
 
-
+    21.01.2024
+    - Modification de la sauvgarde et de le charge pour ajouter la webid et le snr
+    - Verification de l'erreur de sauvgarde 
+    - Ajout de l'indication de la web_id dans le text de départ
+    - Aligenement des textes de départ
+    - Poste sur Git de la V1.01
 
 
 """
@@ -111,11 +121,6 @@ class chat_lora:
 
         #déclaration de la variable rssi
         self.rssi = False
-
-        #couleur d'afficahge selon etas
-        self.col_standby = None
-        self.col_rx = None
-        self.col_tx = None
         
         # chargement de sauvgarde si elle existe
         self.load_parametre()
@@ -145,6 +150,8 @@ class chat_lora:
         print("            /coder pour changer le niveau de coding")
         print("            /rssi pour activer/desactiver le rssi")
         print("            /save pour sauvgarder les parametre")
+        print("            /snr affiche le SNR de la reception")
+        print("            /webid pour changer la web_id")
 
 
     #commande fréquence
@@ -189,16 +196,17 @@ class chat_lora:
         print("            Affiche le rssi de la derniere reception")
         print("            devant le message en dBm")
 
+    #commande web_id
+    def help_web_id(self):
+        print("Commande web_id: /webid [web_id]")
+        print("            [web_id] = web_id du reseau")
+        print("            web_id max 10 caratères")
+
     #sauvgarde des parametre
     def save_parametre(self):
         try:
             #essayer de remonter le système de fichier lecture ecriture
             storage.remount("/",False)
-
-            #verification existance du fichier
-            if cmd.file_exist("/lora/sav_lora_parametre.py"):
-                #suppression du fichier
-                cmd.rm("/lora/sav_lora_parametre.py")
 
             #création et ouveture du fichier
             f = open("/lora/sav_lora_parametre.py", "w")
@@ -212,7 +220,8 @@ class chat_lora:
             f.write("'bandwidth': " + str(self.sx.getBandwidth()) + ",\n")
             f.write("'power': " + str(self.sx.getOutputPower()) + ",\n")
             f.write("'coderate': " + str(self.sx.getCoderate()) + ",\n")
-            f.write("'rssi': " + str(self.rssi) + "\n")
+            f.write("'rssi': " + str(self.rssi) + ",\n")
+            f.write("'web_id': '" + str(self.sx.getWebId()) + "'\n")
 
             #ecriture de la fin de fichier
             f.write("}")
@@ -238,6 +247,7 @@ class chat_lora:
             self.sx.setOutputPower(sav_lora_parametre.PARAMETRE['power'])
             self.sx.setCoderate(sav_lora_parametre.PARAMETRE['coderate'])
             self.rssi = sav_lora_parametre.PARAMETRE['rssi']
+            self.sx.setWebId(sav_lora_parametre.PARAMETRE['web_id'])
             
     #méthode principal
     def run(self):
@@ -246,12 +256,13 @@ class chat_lora:
             print("")
 
         #affichage commande de base
-        print("Bienvenue sur le chat LoRa V1.00")
-        print("Pseudo " + self.pseudo)
-        print("Frequence " + str(self.sx.getFreq()) + "Mhz")
-        print("Bandwidth " + str(self.sx.getBandwidth()) + "kHz")
-        print("Power " + str(self.sx.getOutputPower()) + "dBm")
-        print("Coderate " + str(self.sx.getCoderate()))
+        print("Bienvenue sur le chat LoRa V1.01")
+        print("Pseudo     :" + self.pseudo)
+        print("Frequence  :" + str(self.sx.getFreq()) + "Mhz")
+        print("Bandwidth  :" + str(self.sx.getBandwidth()) + "kHz")
+        print("Power      :" + str(self.sx.getOutputPower()) + "dBm")
+        print("Coderate   :" + str(self.sx.getCoderate()))
+        print("Web ID     :" + str(self.sx.getWebId()))
         print("")
         print("/help pour plus d'information")
 
@@ -367,7 +378,7 @@ class chat_lora:
                     cmd.color_text(cmd.COLOR['green'])
 
                     #envoie message
-                    self.sx.send(b'' + self.pseudo + ": " + temp_txt)
+                    self.sx.send(self.pseudo + ": " + temp_txt)
                     
                     #affichage message avec pseudo
                     for i in range(0, len(temp_txt)):
@@ -448,7 +459,7 @@ class chat_lora:
                             self.help_rssi()
                     #affichage de l'etat actuel
                     else:
-                        print("Derrniere rssi: " + str(self.sx.getRSSI()) + "dBm")
+                        print(" Derrniere rssi: " + str(self.sx.getRSSI()) + "dBm")
                         if self.rssi:
                             print(" Affichage du rssi actif")
                         else:
@@ -459,6 +470,44 @@ class chat_lora:
                 elif "/save" in temp_txt:
                     self.save_parametre()
                     print(" Sauvgarde des parametre effectué")
+
+                #commande de retour du SNR de la derrniere reception
+                elif "/snr" in temp_txt:
+                    print(" SNR: " + str(self.sx.getSNR()) + "dB")
+
+                #commande web_id
+                elif "/webid" in temp_txt:
+                    #elimination de la commande
+                    temp_txt = temp_txt.replace("/webid", "")
+
+                    #verification de la longueur du texte
+                    if len(temp_txt) > 1:
+                        #conversion du texte en int
+                        try:
+                            #changement de la web_id
+                            if self.sx.setWebId(temp_txt[1:len(temp_txt)]):
+                                print(" Web ID changé en: " + str(temp_txt[1:len(temp_txt)]))
+                            else:
+                                print(" Web ID invalide lomgueur max 10 caratère")
+
+                        #erreur de conversion
+                        except Exception as err:
+                            print("Erreur de conversion eviter les espaces")
+                            print("*ERROR* Exception:",str(err))
+                    #si pas de changement
+                    else:
+                        #recupération de la web_id
+                        txt = self.sx.getWebId()
+
+                        #si web_id non vide
+                        if len(txt) > 0:
+                            print(" Web ID actuel: " + str(txt))
+                        #si web_id vide
+                        else:
+                            print(" pas de Web ID paramétrer")
+                        
+                        #affichage de l'aide
+                        self.help_web_id()
 
                 #commmande de test
                 elif "/test" in temp_txt:
